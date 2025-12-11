@@ -1,0 +1,54 @@
+import serial
+import time
+
+def lecture_continue():
+    # --- CONFIGURATION ---
+    port = 'COM51'
+    baudrate = 19200
+    
+    # La commande à envoyer pour demander une lecture
+    commande_hex = "FE FE A4 E0 27 11 01 FD"
+    octet_fin = b'\xFD'
+    
+    # Fréquence de lecture (ex: une lecture toutes les 0.5 secondes)
+    intervalle = 0.5 
+    # ---------------------
+
+    try:
+        ser = serial.Serial(port, baudrate, timeout=1)
+        print(f"--- Lecture en boucle sur {port} (Ctrl+C pour arrêter) ---")
+
+        trame_envoyee = bytes.fromhex(commande_hex)
+
+        while True:
+            # 1. On vide le tampon pour éviter de lire de vieilles données
+            ser.reset_input_buffer()
+
+            # 2. Envoi de la commande
+            ser.write(trame_envoyee)
+            
+            # 3. Lecture jusqu'au caractère de fin (FD)
+            reponse = ser.read_until(expected=octet_fin)
+
+            if len(reponse) > 0:
+                # Affichage propre avec horodatage
+                timestamp = time.strftime("%H:%M:%S")
+                hex_str = reponse.hex(' ').upper()
+                print(f"[{timestamp}] Reçu : {hex_str}")
+            else:
+                print(".", end='', flush=True) # Affiche un point si pas de réponse (timeout)
+
+            # 4. Petite pause avant la prochaine interrogation
+            time.sleep(intervalle)
+
+    except KeyboardInterrupt:
+        print("\n\nArrêt demandé par l'utilisateur.")
+    except serial.SerialException as e:
+        print(f"\nErreur de port : {e}")
+    finally:
+        if 'ser' in locals() and ser.is_open:
+            ser.close()
+            print("Port fermé.")
+
+if __name__ == "__main__":
+    lecture_continue()
